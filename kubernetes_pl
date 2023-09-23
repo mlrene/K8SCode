@@ -1,0 +1,51 @@
+pipeline {
+
+  environment {
+    imagename = "mlrene/playjenkins"
+    registryCredential = 'dockerhub'
+    dockerImage = ''
+    registry = "mlrene/playjenkins"
+    KUBECONFIG = credentials('kubernetes-admin')
+  }
+
+  agent any
+
+  stages {
+
+    stage('Cloning Git') {
+      steps {
+        git([url: 'https://github.com/mlrene/playjenkins.git', branch: 'master', credentialsId: 'github_token'])
+ 
+      }
+    }
+
+   stage('Building image') {
+      steps{
+        script {
+          dockerImage = docker.build imagename
+        }
+      }
+    }
+
+    stage('Push Image') {
+      steps{
+        script {
+          docker.withRegistry( '', registryCredential ) {
+            dockerImage.push("$BUILD_NUMBER")
+             dockerImage.push('latest')
+          }
+        }
+      }
+    }
+
+    stage('Deploy App') {
+      steps {
+        script {
+          sh "kubectl --kubeconfig=$KUBECONFIG apply -f myweb.yaml"
+        }
+      }
+    }
+
+  }
+
+}
